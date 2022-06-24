@@ -1,0 +1,215 @@
+---
+title: "STAT 5730 final project"
+author: "James Laughead"
+date: "4/17/2022"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r}
+#Loading in the data
+library(readr)
+library(tidyverse)
+athlete_events <- read_csv(
+   file = 'athlete_events.csv', 
+   col_types = cols(ID = 'i', Age = 'i', Height = 'i', Year = 'i')
+)
+noc_regions <- read_csv('noc_regions.csv')
+
+athlete_events %>% 
+  filter(!is.na(Medal)) %>% 
+  count(Games, Event, NOC, Medal)
+
+library(gapminder)
+library(countrycode)
+
+host_cities <- read.csv("host_cities.csv")
+#countrycode(athlete_events)
+athlete_events$NOC <- countrycode(athlete_events$NOC, origin = "ioc", destination = "iso3c")
+gapminder <- gapminder
+
+#First, I filter out the olympic dataset so that we only have a range of values listed in the gapminder data
+#From module 4
+athlete.events.change  <- filter(athlete_events, Year >= 1992 & Year <= 2007)
+
+#Next, I delete odd years since olympics are not run in odd years
+gapminder.even <- filter(gapminder, year %% 2 == 0)
+#Then, I take out even years the olympics were not held, so that now we can do a comparison of GDP of countries and years olympics were held
+gapminder.new <- filter(gapminder.even, year != 1962 & year != 1982)
+
+#Final filter so now we only have data in which we have olympics and GDP data for
+athlete.events.change1  <- filter(athlete_events, Year == 1952 | Year == 1972 | Year == 1992 | Year == 2002)
+#Then I change the name of the dataset so I can combine them with left join
+athlete.events.change1$year <- athlete.events.change1$Year
+
+new.df <- left_join(athlete.events.change1, gapminder.new)
+#After this, I filter out values only such that Team == country, so we only have correct and unique values
+#from module 7
+new.df1 <- filter(new.df, Team == country)
+
+#Now we have a data frame in which we can start working on the first problem with
+```
+
+
+
+```{r}
+#Is there a relationship between GDP and number of athletes?
+#filter out each year individually
+#Note: In some cases, there are individuals who can compete in more than one event. For the sake of this exercise, we treat each event uniquely, even if the same athlete participate
+
+#1952
+#Each olympics is unique, so I separated by year in order to see if there were differences among individual years as well.
+#from module 4
+athletes.1952 <- filter(new.df1, Year == 1952)
+
+
+gdpvsathletes1952 <- data.frame(table(athletes.1952$country))
+gdpvsathletes1952$country <- gdpvsathletes1952$Var1
+
+#created one dataframe where gdpPerCapital is included with country
+#from module 7
+new.1952 <- left_join(athletes.1952, gdpvsathletes1952)
+
+#I repeat the same steps for all four years
+#1972
+athletes.1972 <- filter(new.df1, Year == 1972)
+
+
+gdpvsathletes1972 <- data.frame(table(athletes.1972$country))
+gdpvsathletes1972$country <- gdpvsathletes1972$Var1
+
+new.1972 <- left_join(athletes.1972, gdpvsathletes1972)
+new.1972 <- filter(new.1972, gdpPercap < 100000)
+
+
+#1992
+athletes.1992 <- filter(new.df1, Year == 1992)
+
+gdpvsathletes1992 <- data.frame(table(athletes.1992$country))
+gdpvsathletes1992$country <- gdpvsathletes1992$Var1
+
+new.1992 <- left_join(athletes.1992, gdpvsathletes1992)
+
+
+#2002
+athletes.2002 <- filter(new.df1, Year == 2002)
+
+gdpvsathletes2002 <- data.frame(table(athletes.2002$country))
+gdpvsathletes2002$country <- gdpvsathletes2002$Var1
+
+new.2002 <- left_join(athletes.2002, gdpvsathletes2002)
+
+#Now we have each year individually, and we can start to answer our question
+#I decided to plot the data, and use a smoothing line in order to make conclusions.
+#from module 2
+ggplot(data = new.1952) + 
+  geom_point(mapping = aes(x = gdpPercap, y = Freq))+
+  geom_smooth(mapping = aes(x = gdpPercap, y = Freq))
+ggplot(data = new.1972) + 
+  geom_point(mapping = aes(x = gdpPercap, y = Freq))+
+  geom_smooth(mapping = aes(x = gdpPercap, y = Freq))
+ggplot(data = new.1992) + 
+  geom_point(mapping = aes(x = gdpPercap, y = Freq))+
+  geom_smooth(mapping = aes(x = gdpPercap, y = Freq))
+ggplot(data = new.2002) + 
+  geom_point(mapping = aes(x = gdpPercap, y = Freq))+
+  geom_smooth(mapping = aes(x = gdpPercap, y = Freq))
+
+
+#In each of the graphs, there is a positive trend, which shows that countries with more gdp per capita on average have more athletes, is this is true among all four years. I decided to use the raw number of athletes for comparison. 
+
+```
+
+```{r}
+#Is there a relationship between GDP and number of medals?
+#1952 medals by country
+#Here, I use similar methods as in problem 1 in order to obtain the total medal amount for the countries. I only used values in which there were no blanks
+#from module 2,4,7
+medals.1952 <- na.omit(new.1952)
+medals.1952 <- data.frame(table(medals.1952$country))
+medals.1952$country <- medals.1952$Var1
+
+new.medals.1952 <- left_join(athletes.1952, medals.1952)
+
+ggplot(data = new.medals.1952) + 
+  geom_point(mapping = aes(x = gdpPercap, y = Freq)) + 
+  geom_smooth(mapping = aes(x = gdpPercap, y = Freq))
+#Similarly to in problem 1, we plot the gdpPercap this time against the medals that country won, and we repeat this for all the years. Graphs used from knowledge learned from module 2.
+
+#1972 medals by country
+medals.1972 <- na.omit(new.1972)
+medals.1972 <- data.frame(table(medals.1972$country))
+medals.1972$country <- medals.1972$Var1
+
+new.medals.1972 <- left_join(athletes.1972, medals.1972)
+new.medals.1972 <- filter(new.medals.1972, gdpPercap < 100000)
+
+ggplot(data = new.medals.1972) + 
+  geom_point(mapping = aes(x = gdpPercap, y = Freq))+
+  geom_smooth(mapping = aes(x = gdpPercap, y = Freq))
+
+#1992 medals by country
+medals.1992 <- na.omit(new.1992)
+medals.1992 <- data.frame(table(medals.1992$country))
+medals.1992$country <- medals.1992$Var1
+
+new.medals.1992 <- left_join(athletes.1992, medals.1992)
+
+ggplot(data = new.medals.1992) + 
+  geom_point(mapping = aes(x = gdpPercap, y = Freq)) + 
+  geom_smooth(mapping = aes(x = gdpPercap, y = Freq))
+
+#2002 medals by country
+medals.2002 <- na.omit(new.2002)
+medals.2002 <- data.frame(table(medals.2002$country))
+medals.2002$country <- medals.2002$Var1
+
+new.medals.2002 <- left_join(athletes.2002, medals.2002)
+
+ggplot(data = new.medals.2002) + 
+  geom_point(mapping = aes(x = gdpPercap, y = Freq)) + 
+  geom_smooth(mapping = aes(x = gdpPercap, y = Freq))
+
+#For each year, there is a general positive trend in the graph. This means that for each year, the higher the gdp per capita was, the more medals a country won on average. 
+
+
+```
+
+```{r}
+#Question 3 
+#Is the distribution of medals one similar to the overall age distribution?
+#For this data, we are taking data from all years of the olympics
+#Below is the age distribution of all athletes in this dataset
+hist(athlete_events$Age)
+#we filter out only medal winners
+only.medals <- filter(athlete_events, Medal == "Bronze" | Medal == "Silver" | Medal == "Gold")
+
+#Here is the age distribution among medal winners
+hist(only.medals$Age, main = "Age distribution of Olympic athletes", xlab = "Age",ylab = "Frequency")
+?hist()
+#Comparing the two histograms, it appears that the age distribution for medal winners is proportional to the amount that competed at that age range, rather than one age group dominating the field.
+
+#I will further look to see if there are differences for age distribution of just males and females.
+
+#First we filter accordingly
+only.male <- filter(athlete_events, Sex == "M")
+
+only.male.medal <- filter(only.medals, Sex == "M")
+
+hist(only.male$Age, main = "Age distribution of Olympic male athletes", xlab = "Age",ylab = "Frequency")
+hist(only.male.medal$Age, main = "Age distribution of Olympic male athletes medal winners", xlab = "Age",ylab = "Frequency")
+#For male athletes, the age distribution of medal winners appears to be very close to the overall age distribution of competing males
+
+only.female <- filter(athlete_events, Sex == "F")
+
+only.female.medal <- filter(only.medals, Sex == "F")
+
+hist(only.female$Age, main = "Age distribution of Olympic female athletes", xlab = "Age",ylab = "Frequency")
+hist(only.female.medal$Age, main = "Age distribution of Olympic female athletes medal winners", xlab = "Age",ylab = "Frequency")
+
+#For females, it appears that the medal winners occur at a higher rate compared to the total proportion competing in older females, as shown by the relative increase in the bar from 25-30, and relative decrease of the bar from 15-20, when compared to the total age distribution of olympic competing females.
+
+```
+
+
